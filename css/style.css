@@ -1,0 +1,85 @@
+body {
+  background-color: #f8f9fc;
+  color: #aa3131;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  background-color: #fff;
+}
+
+.card:hover {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+  background-color: #aa3131;
+  color: white;
+  border-bottom: 1px solid #e3e6f0;
+  padding: 1rem;
+}
+
+.card-body {
+  padding: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.card-title {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.chart-container {
+  position: relative;
+  height: 40vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.table thead th {
+  background-color: #aa3131;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  border-bottom: 2px solid #e3e6f0;
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.table tbody tr:hover {
+  background-color: #f1f1f1;
+  transition: background-color 0.3s ease;
+}
+
+.btn {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background-color: #aa3131;
+  border-color: #aa3131;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+  background-color: #2e59d9;
+  border-color: #2e59d9;
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.text-gray-800 {
+  color: #343a40;
+  font-weight: 600;
+}
