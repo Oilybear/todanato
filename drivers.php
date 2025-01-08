@@ -2,6 +2,28 @@
 include('includes/dbconfig.php'); // Ensure this is the correct path
 include('includes/header.php'); 
 include('includes/navbar.php');     
+
+// Fetch the count of pending applications
+$query_pending_apps = "SELECT COUNT(*) as pending_count FROM driver_applications WHERE application_status = 'pending'";
+$result_pending_apps = mysqli_query($connection, $query_pending_apps);
+$row_pending_apps = mysqli_fetch_assoc($result_pending_apps);
+$pending_count = $row_pending_apps['pending_count'] ?? 0; // Default to 0 if no result
+
+// Fetch the count of pending payments
+$query_pending_payments = "SELECT COUNT(*) as pending_payment_count 
+                           FROM driver_applications 
+                           WHERE application_status = 'approved' AND payment_status = 'unpaid'";
+$result_pending_payments = mysqli_query($connection, $query_pending_payments);
+$row_pending_payments = mysqli_fetch_assoc($result_pending_payments);
+$pending_payment_count = $row_pending_payments['pending_payment_count'] ?? 0; // Default to 0 if no result
+
+// Fetch current drivers from the drivers table
+$query_current_drivers = "SELECT * FROM drivers";
+$result_current_drivers = mysqli_query($connection, $query_current_drivers);
+
+if (!$result_current_drivers) {
+    die("Query Failed: " . mysqli_error($connection));
+}
 ?>
 
 <!DOCTYPE html>
@@ -13,89 +35,122 @@ include('includes/navbar.php');
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Driver Management</title>
     <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
     <link href="css/sb-admin-2.min.css" rel="stylesheet">
     <style>
-        .table th, .table td { text-align: center; }
-        .table thead th { background-color: #aa3131; color: white; }
-        .table tbody tr:nth-child(even) { background-color: #f8f9fc; }
-        .table tbody tr:hover { background-color: #e2e6ea; }
-        .custom-btn { background-color: #aa3131; color: white; border: none; border-radius: 0.25rem; padding: 0.375rem 0.75rem; cursor: pointer; }
-        .custom-btn:hover { background-color: #2e59d9; }
-        .btn-edit { background-color: #4e73df; color: white; }
-        .btn-delete { background-color: #e74a3b; color: white; }
+        .card-header {
+            background-color: #aa3131;
+            color: white;
+            text-align: center;
+        }
+        .card-body {
+            text-align: center;
+        }
+        .card-body .count {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .btn-view, .btn-add, .btn-payments, .btn-details {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        .btn-view:hover, .btn-add:hover, .btn-payments:hover, .btn-details:hover {
+            background-color: #0056b3;
+        }
+        .table th, .table td {
+            text-align: center;
+        }
+        .table thead th {
+            background-color: #aa3131;
+            color: white;
+        }
     </style>
 </head>
 
 <body>
 
 <div class="container-fluid">
-    <!-- Data Table -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6><strong>Driver Management</strong></h6>
-            <div>
-                <a href="add_driver.php" class="btn btn-primary mr-2">Add Driver</a>
-                <a href="transfer_ownership_form.php" class="btn btn-primary">Transfer Ownership</a>
+    <div class="row justify-content-center">
+        <!-- Pending Applications Card -->
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header text-center">
+                    <h6><strong>Pending Applications</strong></h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="count"><?php echo $pending_count; ?></p>
+                    <a href="pending_applications.php" class="btn-view">View Pending Applications</a>
+                    <a href="add_driver.php" class="btn-add">Add Application</a>
+                </div>
             </div>
         </div>
 
+        <!-- Pending Payments Card -->
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header text-center">
+                    <h6><strong>Pending Application Payments</strong></h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="count"><?php echo $pending_payment_count; ?></p>
+                    <a href="pending_payments.php" class="btn-payments">View Pending Application Payments</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Drivers Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h6><strong>Current Drivers in Fleet</strong></h6>
+        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <?php
-                $query = "SELECT * FROM drivers";
-                $query_run = mysqli_query($connection, $query);
-                ?>
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Full Name</th>
-                            <th>Motor Plate Number</th>
-                            <th>Make/Model</th>
+                            <th>Body Number</th>
+                            <th>Plate Number</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        if (mysqli_num_rows($query_run) > 0) {
-                            while ($row = mysqli_fetch_assoc($query_run)) {
+                        if (mysqli_num_rows($result_current_drivers) > 0) {
+                            while ($row = mysqli_fetch_assoc($result_current_drivers)) {
+                                $full_name = htmlspecialchars($row["first_name"] . " " . $row["middle_name"] . " " . $row["last_name"]);
+                                $body_number = htmlspecialchars($row["body_number"]);
+                                $plate_number = htmlspecialchars($row["motor_plate_no"]);
                                 ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($row["first_name"] . " " . $row["middle_name"] . " " . $row["last_name"]); ?></td>
-                                    <td><?php echo htmlspecialchars($row["motor_plate_no"]); ?></td>
-                                    <td><?php echo htmlspecialchars($row["make_model"]); ?></td>
+                                    <td><?php echo $full_name; ?></td>
+                                    <td><?php echo $body_number; ?></td>
+                                    <td><?php echo $plate_number; ?></td>
                                     <td>
-                                        <!-- View Full Details Button -->
-                                        <button type="button" class="custom-btn btn-sm" data-toggle="modal" data-target="#detailsModal"
-                                                data-id="<?php echo htmlspecialchars($row["driver_id"]); ?>"
-                                                data-fullname="<?php echo htmlspecialchars($row["first_name"] . " " . $row["middle_name"] . " " . $row["last_name"]); ?>"
-                                                data-license="<?php echo htmlspecialchars($row["license_number"]); ?>"
-                                                data-birth="<?php echo htmlspecialchars($row["date_of_birth"]); ?>"
-                                                data-placebirth="<?php echo htmlspecialchars($row["place_of_birth"]); ?>"
-                                                data-address="<?php echo htmlspecialchars($row["current_address"]); ?>"
-                                                data-body="<?php echo htmlspecialchars($row["body_number"]); ?>"
-                                                data-plate="<?php echo htmlspecialchars($row["motor_plate_no"]); ?>"
-                                                data-make="<?php echo htmlspecialchars($row["make_model"]); ?>"
-                                                data-ownership="<?php echo htmlspecialchars($row["ownership_status"]); ?>"
-                                                data-membership="<?php echo htmlspecialchars($row["membership_application_form_copy"]); ?>"
-                                                data-paymentproof="<?php echo htmlspecialchars($row["proof_of_membership_payment"]); ?>"
-                                                data-licensecopy="<?php echo htmlspecialchars($row["drivers_license_copy"]); ?>">
-                                            View Full Details
-                                        </button>
+                                    <button type="button" class="btn-details" 
+        data-toggle="modal" 
+        data-target="#detailsModal"
+        data-id="<?php echo htmlspecialchars($row['driver_id']); ?>"
+        data-fullname="<?php echo htmlspecialchars($row["first_name"] . " " . $row["middle_name"] . " " . $row["last_name"]); ?>"
+        data-license="<?php echo htmlspecialchars($row['license_number']); ?>"
+        data-address="<?php echo htmlspecialchars($row['current_address']); ?>"
+        data-body="<?php echo htmlspecialchars($row['body_number']); ?>"
+        data-plate="<?php echo htmlspecialchars($row['motor_plate_no']); ?>"
+        data-make="<?php echo htmlspecialchars($row['make_model']); ?>">
+    View Full Details
+</button>
 
-                                        <!-- Edit Button -->
-                                        <a href="driver_edit.php?id=<?php echo $row['driver_id']; ?>" class="btn btn-edit btn-sm">Edit</a>
-                                        
-                                        <!-- Delete Button -->
-                                        <button type="button" class="btn btn-delete btn-sm" data-toggle="modal" data-target="#deleteModal" data-id="<?php echo $row['driver_id']; ?>">
-                                            Delete
-                                        </button>
                                     </td>
                                 </tr>
                                 <?php
                             }
                         } else {
-                            echo "<tr><td colspan='4' class='no-record'>No Record Found</td></tr>";
+                            echo "<tr><td colspan='4'>No Current Drivers Found</td></tr>";
                         }
                         ?>
                     </tbody>
@@ -103,64 +158,34 @@ include('includes/navbar.php');
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Details Modal -->
-    <div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="detailsModalLabel">Driver Details</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Full Name:</strong> <span id="modal-fullname"></span></p>
-                    <p><strong>License Number:</strong> <span id="modal-license"></span></p>
-                    <p><strong>Date of Birth:</strong> <span id="modal-birth"></span></p>
-                    <p><strong>Place of Birth:</strong> <span id="modal-placebirth"></span></p>
-                    <p><strong>Current Address:</strong> <span id="modal-address"></span></p>
-                    <p><strong>Body Number:</strong> <span id="modal-body"></span></p>
-                    <p><strong>Motor Plate Number:</strong> <span id="modal-plate"></span></p>
-                    <p><strong>Make/Model:</strong> <span id="modal-make"></span></p>
-                    <p><strong>Ownership Status:</strong> <span id="modal-ownership"></span></p>
-                    <p><strong>Membership Form Copy:</strong> <span id="modal-membership"></span></p>
-                    <p><strong>Proof of Membership Payment:</strong> <span id="modal-paymentproof"></span></p>
-                    <p><strong>Driver’s License Copy:</strong> <span id="modal-licensecopy"></span></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+<!-- Driver Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <h5 class="modal-title" id="detailsModalLabel">Driver Details</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete this driver? This action cannot be undone.</p>
-                <p>Related Records:</p>
-                <ul id="related-records-list">
-                    <li>Customer Reports: <span id="reports-count">0</span></li>
-                    <li>Violations: <span id="violations-count">0</span></li>
-                    <li>Messages: <span id="messages-count">0</span></li>
-                    <li>App Driver Records: <span id="app-drivers-count">0</span></li>
-                </ul>
-                <input type="hidden" name="delete_id" id="delete_id">
+                <p><strong>Full Name:</strong> <span id="modal-fullname"></span></p>
+                <p><strong>Driver’s License:</strong> <span id="modal-license"></span></p>
+                <p><strong>Current Address:</strong> <span id="modal-address"></span></p>
+                <p><strong>Body Number:</strong> <span id="modal-body"></span></p>
+                <p><strong>Motor Plate Number:</strong> <span id="modal-plate"></span></p>
+                <p><strong>Make/Model:</strong> <span id="modal-make"></span></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <form action="driver_code.php" method="POST" id="deleteForm">
-                    <input type="hidden" name="delete_id" id="delete_id_form">
-                    <button type="submit" name="delete_btn" class="btn btn-danger">Delete</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <form method="POST" action="delete_driver.php" class="d-inline">
+                    <input type="hidden" name="driver_id" id="modal-driver-id">
+                    <button type="submit" class="btn btn-danger" 
+                            onclick="return confirm('Are you sure you want to delete this driver? This action cannot be undone.');">
+                        Delete Driver
+                    </button>
                 </form>
             </div>
         </div>
@@ -168,76 +193,31 @@ include('includes/navbar.php');
 </div>
 
 
-</div>
-
 <?php
 include('includes/scripts.php');
 include('includes/footer.php');
 ?>
-</body>
-</html>
 
 <script>
 $(document).ready(function() {
-    // View Details Modal
     $('#detailsModal').on('show.bs.modal', function(event) {
-        var button = $(event.relatedTarget);
+        var button = $(event.relatedTarget); // Button that triggered the modal
         var modal = $(this);
 
-        // Populate modal fields with data
+        // Populate modal fields with data attributes
         modal.find('#modal-fullname').text(button.data('fullname'));
         modal.find('#modal-license').text(button.data('license'));
-        modal.find('#modal-birth').text(button.data('birth'));
-        modal.find('#modal-placebirth').text(button.data('placebirth'));
         modal.find('#modal-address').text(button.data('address'));
         modal.find('#modal-body').text(button.data('body'));
         modal.find('#modal-plate').text(button.data('plate'));
         modal.find('#modal-make').text(button.data('make'));
-        modal.find('#modal-ownership').text(button.data('ownership'));
 
-        // File links
-        if (button.data('membership')) {
-            modal.find('#modal-membership').html('<a href="uploads/' + button.data('membership') + '" target="_blank">View Membership Form</a>');
-        } else {
-            modal.find('#modal-membership').text('Not Available');
-        }
-        
-        if (button.data('paymentproof')) {
-            modal.find('#modal-paymentproof').html('<a href="uploads/' + button.data('paymentproof') + '" target="_blank">View Payment Proof</a>');
-        } else {
-            modal.find('#modal-paymentproof').text('Not Available');
-        }
-        
-        if (button.data('licensecopy')) {
-            modal.find('#modal-licensecopy').html('<a href="uploads/' + button.data('licensecopy') + '" target="_blank">View License Copy</a>');
-        } else {
-            modal.find('#modal-licensecopy').text('Not Available');
-        }
+        // Set driver ID for the delete action
+        modal.find('#modal-driver-id').val(button.data('id'));
     });
-
-    // Delete Modal
-$('#deleteModal').on('show.bs.modal', function(event) {
-    var button = $(event.relatedTarget); // Button that triggered the modal
-    var driverId = button.data('id'); // Extract driver ID
-
-    // Set the hidden input in the form to the driver ID
-    $('#delete_id_form').val(driverId);
-
-    // Perform AJAX request to get record counts (if necessary)
-    $.ajax({
-        url: 'fetch_related_counts.php', // This file will return the counts for the driver
-        method: 'POST',
-        data: { driver_id: driverId },
-        dataType: 'json',
-        success: function(data) {
-            // Update the modal with the fetched counts
-            $('#reports-count').text(data.reports);
-            $('#violations-count').text(data.violations);
-            $('#messages-count').text(data.messages);
-            $('#app-drivers-count').text(data.app_drivers);
-        }
-    });
-});
-
 });
 </script>
+
+
+</body>
+</html>

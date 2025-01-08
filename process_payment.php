@@ -1,38 +1,51 @@
 <?php
 include('includes/dbconfig.php'); // Ensure this is the correct path
+require_once __DIR__ . '/vendor/autoload.php'; // Ensure the autoloader is included
 
-// Check if form is submitted
 if (isset($_POST['add_payment_btn'])) {
-    // Get form data
     $driver_id = $_POST['driver_id'];
-    $payment_date = $_POST['payment_date'];
+    $date_of_payment = $_POST['date_of_payment'];
     $amount = $_POST['amount'];
-    
-    // Handle file upload for payment proof
-    $upload_dir = 'uploads/';
-    $file_name = $_FILES['payment_proof']['name'];
-    $file_tmp_name = $_FILES['payment_proof']['tmp_name'];
-    $file_path = $upload_dir . basename($file_name);
+    $payment_for = $_POST['payment_for'];
 
-    // Check if the uploads directory exists, if not, create it
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
+    // Define the absolute path for the uploads directory
+    $uploads_dir = __DIR__ . '/uploads/';
+    if (!is_dir($uploads_dir)) {
+        mkdir($uploads_dir, 0777, true); // Create directory if it doesn't exist
     }
 
-    // Move the uploaded file to the uploads directory
-    if (move_uploaded_file($file_tmp_name, $file_path)) {
-        // Prepare and execute the query to insert payment data into the payments table
-        $query = "INSERT INTO payments (driver_id, payment_date, amount, payment_proof) VALUES (?, ?, ?, ?)";
+    // Generate the receipt file path
+    $receipt_filename = "Receipt_" . $driver_id . "_" . time() . ".pdf";
+    $receipt_filepath = $uploads_dir . $receipt_filename;
+
+    try {
+        // Generate the receipt PDF using TCPDF
+        $pdf = new TCPDF();
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 12);
+
+        // Add receipt content
+        $pdf->Cell(0, 10, "Payment Receipt", 0, 1, 'C');
+        $pdf->Ln(10);
+        $pdf->Cell(0, 10, "Driver ID: " . $driver_id, 0, 1);
+        $pdf->Cell(0, 10, "Payment For: " . $payment_for, 0, 1);
+        $pdf->Cell(0, 10, "Amount: PHP " . number_format($amount, 2), 0, 1);
+        $pdf->Cell(0, 10, "Date of Payment: " . $date_of_payment, 0, 1);
+
+        // Save the receipt as a PDF file
+        $pdf->Output($receipt_filepath, 'F'); // Save to file
+
+        // Insert payment data into the database
+        $query = "INSERT INTO payments (driver_id, date_of_payment, amount, payment_for, payment_proof) 
+                  VALUES (?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($connection, $query);
 
         if ($stmt) {
-            // Bind parameters and execute the statement
-            mysqli_stmt_bind_param($stmt, "isds", $driver_id, $payment_date, $amount, $file_name);
+            mysqli_stmt_bind_param($stmt, "isdss", $driver_id, $date_of_payment, $amount, $payment_for, $receipt_filename);
             mysqli_stmt_execute($stmt);
 
-            // Check if insertion was successful
             if (mysqli_stmt_affected_rows($stmt) > 0) {
-                $_SESSION['success'] = "Payment added successfully!";
+                $_SESSION['success'] = "Payment added successfully, and receipt generated!";
                 header("Location: revenue.php");
             } else {
                 $_SESSION['error'] = "Failed to add payment.";
@@ -40,17 +53,14 @@ if (isset($_POST['add_payment_btn'])) {
             }
             mysqli_stmt_close($stmt);
         } else {
-            // Query preparation failed
             $_SESSION['error'] = "Database error: Could not prepare statement.";
             header("Location: revenue.php");
         }
-    } else {
-        // File upload failed
-        $_SESSION['error'] = "Failed to upload payment proof.";
+    } catch (Exception $e) {
+        $_SESSION['error'] = "Error generating receipt: " . $e->getMessage();
         header("Location: revenue.php");
     }
 } else {
-    // If the form wasn't submitted correctly
     $_SESSION['error'] = "Invalid request.";
     header("Location: revenue.php");
 }

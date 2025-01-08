@@ -15,9 +15,9 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header"><h5>Add Driver</h5></div>
+                <div class="card-header"><h5>New Application</h5></div>
                 <div class="card-body">
-                    <form action="preview_driver.php" method="POST" enctype="multipart/form-data">
+                    <form action="preview_driver.php" method="POST">
                         
                         <!-- Driver Information Section -->
                         <h6>Driver Information</h6>
@@ -72,20 +72,6 @@
                                 <option value="Operator">Operator</option>
                                 <option value="Driver">Driver</option>
                             </select>
-                        </div>
-
-                        <!-- File Uploads -->
-                        <div class="form-group mt-3">
-                            <label>Membership Application Form Copy</label>
-                            <input type="file" name="membership_application_form_copy" class="form-control-file" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Proof of Membership Payment</label>
-                            <input type="file" name="proof_of_membership_payment" class="form-control-file" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Driver’s License Copy</label>
-                            <input type="file" name="drivers_license_copy" class="form-control-file" required>
                         </div>
 
                         <!-- Form Actions -->

@@ -2,9 +2,70 @@
 <?php 
 include('includes/header.php'); 
 include('includes/navbar.php'); 
+include('dbconfig.php'); // Include your database connection file
+
+if (isset($_POST['add_driver_btn'])) {
+    // Store data into the driver_applications table
+    $last_name = $_POST['last_name'];
+    $first_name = $_POST['first_name'];
+    $middle_name = $_POST['middle_name'];
+    $date_of_birth = $_POST['date_of_birth'];
+    $place_of_birth = $_POST['place_of_birth'];
+    $current_address = $_POST['current_address'];
+    $license_number = $_POST['license_number'];
+    $body_number = $_POST['body_number'];
+    $motor_plate_no = $_POST['motor_plate_no'];
+    $make_model = $_POST['make_model'];
+    $ownership_status = $_POST['ownership_status'];
+    $application_status = 'pending'; // Default value for new applications
+
+    // SQL query to insert data
+    $query = "INSERT INTO driver_applications (
+        last_name, 
+        first_name, 
+        middle_name, 
+        date_of_birth, 
+        place_of_birth, 
+        current_address, 
+        license_number, 
+        body_number, 
+        motor_plate_no, 
+        make_model, 
+        ownership_status, 
+        application_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    // Prepare statement
+    if ($stmt = $conn->prepare($query)) {
+        $stmt->bind_param(
+            "ssssssssssss", 
+            $last_name, 
+            $first_name, 
+            $middle_name, 
+            $date_of_birth, 
+            $place_of_birth, 
+            $current_address, 
+            $license_number, 
+            $body_number, 
+            $motor_plate_no, 
+            $make_model, 
+            $ownership_status,
+            $application_status
+        );
+
+        if ($stmt->execute()) {
+            echo "<script>alert('Driver information successfully saved!'); window.location.href='drivers.php';</script>";
+        } else {
+            echo "<script>alert('Error saving driver information. Please try again.');</script>";
+        }
+        $stmt->close();
+    } else {
+        echo "<script>alert('Error preparing statement.');</script>";
+    }
+}
 
 if (isset($_POST['preview_driver_btn'])) {
-    // Collect and sanitize form data
+    // Collect and sanitize form data for preview
     $last_name = htmlspecialchars($_POST['last_name']);
     $first_name = htmlspecialchars($_POST['first_name']);
     $middle_name = htmlspecialchars($_POST['middle_name']);
@@ -16,16 +77,6 @@ if (isset($_POST['preview_driver_btn'])) {
     $motor_plate_no = htmlspecialchars($_POST['motor_plate_no']);
     $make_model = htmlspecialchars($_POST['make_model']);
     $ownership_status = htmlspecialchars($_POST['ownership_status']);
-    
-    // Handle file uploads
-    $upload_dir = 'uploads/';
-    $membership_application_form_copy = uniqid() . '_' . basename($_FILES['membership_application_form_copy']['name']);
-    $proof_of_membership_payment = uniqid() . '_' . basename($_FILES['proof_of_membership_payment']['name']);
-    $drivers_license_copy = uniqid() . '_' . basename($_FILES['drivers_license_copy']['name']);
-
-    move_uploaded_file($_FILES['membership_application_form_copy']['tmp_name'], $upload_dir . $membership_application_form_copy);
-    move_uploaded_file($_FILES['proof_of_membership_payment']['tmp_name'], $upload_dir . $proof_of_membership_payment);
-    move_uploaded_file($_FILES['drivers_license_copy']['tmp_name'], $upload_dir . $drivers_license_copy);
 }
 ?>
 
@@ -55,13 +106,10 @@ if (isset($_POST['preview_driver_btn'])) {
                     <p><strong>Motor Plate Number:</strong> <?php echo $motor_plate_no; ?></p>
                     <p><strong>Make/Model:</strong> <?php echo $make_model; ?></p>
                     <p><strong>Ownership Status:</strong> <?php echo $ownership_status; ?></p>
-                    <p><strong>Membership Application Form Copy:</strong> <?php echo $membership_application_form_copy; ?></p>
-                    <p><strong>Proof of Membership Payment:</strong> <?php echo $proof_of_membership_payment; ?></p>
-                    <p><strong>Driver’s License Copy:</strong> <?php echo $drivers_license_copy; ?></p>
 
                     <!-- Confirm and Go Back buttons -->
-                    <form action="save_driver.php" method="POST">
-                        <!-- Hidden fields to carry data to save_driver.php -->
+                    <form action="preview_driver.php" method="POST">
+                        <!-- Hidden fields to carry data for storage -->
                         <input type="hidden" name="last_name" value="<?php echo $last_name; ?>">
                         <input type="hidden" name="first_name" value="<?php echo $first_name; ?>">
                         <input type="hidden" name="middle_name" value="<?php echo $middle_name; ?>">
@@ -73,9 +121,6 @@ if (isset($_POST['preview_driver_btn'])) {
                         <input type="hidden" name="motor_plate_no" value="<?php echo $motor_plate_no; ?>">
                         <input type="hidden" name="make_model" value="<?php echo $make_model; ?>">
                         <input type="hidden" name="ownership_status" value="<?php echo $ownership_status; ?>">
-                        <input type="hidden" name="membership_application_form_copy" value="<?php echo $membership_application_form_copy; ?>">
-                        <input type="hidden" name="proof_of_membership_payment" value="<?php echo $proof_of_membership_payment; ?>">
-                        <input type="hidden" name="drivers_license_copy" value="<?php echo $drivers_license_copy; ?>">
 
                         <div class="form-group mt-3">
                             <button type="submit" name="add_driver_btn" class="btn btn-success">Confirm</button>

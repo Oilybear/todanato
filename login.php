@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Admin Login</title>
+    <title>TODANaTo</title>
 
     <!-- Custom fonts for this template-->
     <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
@@ -41,15 +41,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <!-- Custom styles for this page-->
     <style>
+        body {
+            background-color: white !important;
+        }
         .form-container {
             max-width: 900px;
             margin: auto;
-                
         }
     </style>
 </head>
 
-<body class="bg-gradient-primary">
+<body>
 
     <div class="container">
         <!-- Outer Row -->
@@ -62,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <div class="col-lg-12">
                                 <div class="p-5 form-container">
                                     <div class="text-center">
-                                        <h1 class="h4 text-gray-900 mb-4">Admin Login</h1>
+                                        <h1 class="h4 text-gray-900 mb-4">Administrator Login</h1>
                                     </div>
                                     <?php
                                     if (isset($_SESSION['status'])) {

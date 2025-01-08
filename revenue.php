@@ -7,8 +7,8 @@ include('includes/navbar.php');
 $current_month_query = "
     SELECT SUM(amount) AS total_revenue 
     FROM payments 
-    WHERE MONTH(payment_date) = MONTH(CURRENT_DATE()) 
-    AND YEAR(payment_date) = YEAR(CURRENT_DATE())
+    WHERE MONTH(date_of_payment) = MONTH(CURRENT_DATE()) 
+    AND YEAR(date_of_payment) = YEAR(CURRENT_DATE())
 ";
 $current_month_result = mysqli_query($connection, $current_month_query);
 $current_month_revenue = 0;
@@ -22,21 +22,26 @@ if ($current_month_result && mysqli_num_rows($current_month_result) > 0) {
 $query = "
     SELECT 
         CONCAT(d.last_name, ', ', d.first_name, ' ', d.middle_name) AS driver_name, 
-        p.payment_date, 
-        SUM(p.amount) AS total_payment 
+        p.date_of_payment, 
+        p.amount, 
+        p.payment_proof, 
+        p.payment_for
     FROM 
         payments p
     JOIN 
         drivers d ON p.driver_id = d.driver_id
-    GROUP BY 
-        d.driver_id, p.payment_date
     ORDER BY 
-        p.payment_date DESC
+        p.date_of_payment DESC
 ";
 $query_run = mysqli_query($connection, $query);
 
-// Query to get list of drivers for the dropdown in the modal
-$drivers_query = "SELECT driver_id, last_name, first_name, middle_name FROM drivers";
+// Query to get unique drivers from payments table
+$drivers_query = "
+    SELECT DISTINCT d.driver_id, CONCAT(d.last_name, ', ', d.first_name, ' ', d.middle_name) AS driver_name
+    FROM payments p
+    JOIN drivers d ON p.driver_id = d.driver_id
+    ORDER BY driver_name
+";
 $drivers_result = mysqli_query($connection, $drivers_query);
 ?>
 
@@ -53,7 +58,10 @@ $drivers_result = mysqli_query($connection, $drivers_query);
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h6 class="m-0 font-weight-bold text-primary">Driver Revenue Report</h6>
-        <button class="btn btn-primary" data-toggle="modal" data-target="#addPaymentModal">Add Payment</button>
+        <div>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#addPaymentModal">Add Payment</button>
+            <button class="btn btn-success" data-toggle="modal" data-target="#generateReportModal">Generate Report</button>
+        </div>
     </div>
 
     <!-- Display Total Revenue for the Current Month -->
@@ -71,16 +79,35 @@ $drivers_result = mysqli_query($connection, $drivers_query);
                             <th>Driver Name</th>
                             <th>Payment Date</th>
                             <th>Total Payment</th>
+                            <th>Payment For</th>
+                            <th>Proof of Payment</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        if(mysqli_num_rows($query_run) > 0) {
-                            while($row = mysqli_fetch_assoc($query_run)) {
+                        if (mysqli_num_rows($query_run) > 0) {
+                            while ($row = mysqli_fetch_assoc($query_run)) {
                                 echo "<tr>";
                                 echo "<td>" . htmlspecialchars($row['driver_name']) . "</td>";
-                                echo "<td>" . htmlspecialchars($row['payment_date']) . "</td>";
-                                echo "<td>" . htmlspecialchars(number_format($row['total_payment'], 2)) . "</td>";
+                                echo "<td>" . htmlspecialchars($row['date_of_payment']) . "</td>";
+                                echo "<td>" . htmlspecialchars(number_format($row['amount'], 2)) . "</td>";
+                                echo "<td>" . htmlspecialchars($row['payment_for']) . "</td>";
+                                echo "<td>";
+                                
+                                // Define file paths
+                                $receipt_path = 'receipts/' . htmlspecialchars($row['payment_proof']);
+                                $upload_path = 'uploads/' . htmlspecialchars($row['payment_proof']);
+
+                                // Check if the proof exists in the receipts folder or uploads folder
+                                if (file_exists($receipt_path)) {
+                                    echo "<a href='" . $receipt_path . "' target='_blank' class='btn btn-info btn-sm'>View Receipt</a>";
+                                } elseif (file_exists($upload_path)) {
+                                    echo "<a href='" . $upload_path . "' target='_blank' class='btn btn-info btn-sm'>View Proof</a>";
+                                } else {
+                                    echo "No Proof Available";
+                                }
+
+                                echo "</td>";
                                 echo "</tr>";
                             }
                         }
@@ -96,7 +123,7 @@ $drivers_result = mysqli_query($connection, $drivers_query);
 <div class="modal fade" id="addPaymentModal" tabindex="-1" role="dialog" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <form action="process_payment.php" method="POST" enctype="multipart/form-data">
+            <form action="process_payment.php" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addPaymentModalLabel">Add Payment</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -109,11 +136,9 @@ $drivers_result = mysqli_query($connection, $drivers_query);
                         <label for="driver_id">Select Driver</label>
                         <select name="driver_id" id="driver_id" class="form-control" required>
                             <option value="">Choose a driver</option>
-                            <?php while($driver = mysqli_fetch_assoc($drivers_result)) { 
-                                $driver_name = $driver['last_name'] . ", " . $driver['first_name'] . " " . $driver['middle_name'];
-                            ?>
+                            <?php while ($driver = mysqli_fetch_assoc($drivers_result)) { ?>
                                 <option value="<?php echo htmlspecialchars($driver['driver_id']); ?>">
-                                    <?php echo htmlspecialchars($driver_name); ?>
+                                    <?php echo htmlspecialchars($driver['driver_name']); ?>
                                 </option>
                             <?php } ?>
                         </select>
@@ -121,8 +146,8 @@ $drivers_result = mysqli_query($connection, $drivers_query);
 
                     <!-- Payment Date Input -->
                     <div class="form-group">
-                        <label for="payment_date">Payment Date</label>
-                        <input type="date" name="payment_date" id="payment_date" class="form-control" required>
+                        <label for="date_of_payment">Payment Date</label>
+                        <input type="date" name="date_of_payment" id="date_of_payment" class="form-control" required>
                     </div>
 
                     <!-- Payment Amount Input -->
@@ -131,14 +156,50 @@ $drivers_result = mysqli_query($connection, $drivers_query);
                         <input type="number" name="amount" id="amount" class="form-control" step="0.01" required>
                     </div>
 
-                    <!-- Payment Proof Upload -->
+                    <!-- Payment For Input -->
                     <div class="form-group">
-                        <label for="payment_proof">Payment Proof</label>
-                        <input type="file" name="payment_proof" id="payment_proof" class="form-control-file" required>
+                        <label for="payment_for">Payment For</label>
+                        <input type="text" name="payment_for" id="payment_for" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" name="add_payment_btn" class="btn btn-primary">Add Payment</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Report Modal -->
+<div class="modal fade" id="generateReportModal" tabindex="-1" role="dialog" aria-labelledby="generateReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form action="generate_payment_report.php" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="generateReportModalLabel">Generate Payment Report</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Driver Selection -->
+                    <div class="form-group">
+                        <label for="driver_selection">Select Driver</label>
+                        <select name="driver_id" id="driver_selection" class="form-control">
+                            <option value="all">All Drivers</option>
+                            <?php
+                            $drivers_result = mysqli_query($connection, $drivers_query); // Reset result set
+                            while ($driver = mysqli_fetch_assoc($drivers_result)) { ?>
+                                <option value="<?php echo htmlspecialchars($driver['driver_id']); ?>">
+                                    <?php echo htmlspecialchars($driver['driver_name']); ?>
+                                </option>
+                            <?php } ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Generate Report</button>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                 </div>
             </form>
